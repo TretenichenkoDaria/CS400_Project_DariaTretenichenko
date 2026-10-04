@@ -1,4 +1,0 @@
-perish {
-infect 🩸 a 💉 1 ⏳
-}
-exit 0 ⏳

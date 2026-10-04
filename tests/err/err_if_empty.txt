@@ -1,3 +1,0 @@
-survive alive {
-}
-exit 0 ⏳

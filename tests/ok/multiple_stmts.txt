@@ -1,4 +1,0 @@
-infect 🩸 a 💉 1 ⏳
-a 💉 2 ⏳
-immune 🩸 b 💉 3 ⏳
-exit a ⏳
