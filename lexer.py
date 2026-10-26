@@ -1,0 +1,200 @@
+"""Lexical analyzer for the survival language compiler."""
+
+import sys
+from typing import List, Optional
+from tokens import Token
+
+MAX_64BIT_INT = 9223372036854775807
+
+KEYWORDS = {
+    "infect": "mut_modifier",
+    "immune": "const_modifier",
+    "exit": "keyword",
+    "alive": "boolean",
+    "dead": "boolean",
+    "survive": "keyword",
+    "perish": "keyword",
+}
+
+EMOJI_TOKENS = {
+    "🩸".encode("utf-8"): ("typename", "🩸"),
+    "🫀".encode("utf-8"): ("typename", "🫀"),
+    "💊".encode("utf-8"): ("typename", "💊"),
+    "💉".encode("utf-8"): ("operator", "💉"),
+    "⏳".encode("utf-8"): ("operator", "⏳"),
+}
+
+
+class Lexer:
+    """Tokenizes raw UTF-8 bytes into structured tokens per line."""
+
+    def __init__(self, source_bytes: bytes):
+        self.data = source_bytes
+        self.length = len(source_bytes)
+        self.index = 0
+        self.current_line = 1
+        self.current_column = 1
+
+    def error(self, line: int, column: int, message: str) -> None:
+        sys.stderr.write(f"compilation error: line {line}:{column}: {message}\n")
+        sys.exit(1)
+
+    def peek_byte(self, offset: int = 0) -> Optional[int]:
+        pos = self.index + offset
+        if pos < self.length:
+            return self.data[pos]
+        return None
+
+    def tokenize(self) -> List[List[Token]]:
+        lines: List[List[Token]] = []
+        current_line_tokens: List[Token] = []
+
+        while self.index < self.length:
+            byte = self.data[self.index]
+
+            # Whitespace: space (32) and horizontal tab (9)
+            if byte in (32, 9):
+                self.index += 1
+                self.current_column += 1
+                continue
+
+            # Newline (10)
+            if byte == 10:
+                if current_line_tokens:
+                    lines.append(current_line_tokens)
+                    current_line_tokens = []
+                self.index += 1
+                self.current_line += 1
+                self.current_column = 1
+                continue
+
+            # Check emoji tokens first (multi-byte UTF-8 sequences)
+            matched_emoji = False
+            for emoji_bytes, (token_kind, token_text) in EMOJI_TOKENS.items():
+                emoji_len = len(emoji_bytes)
+                if self.data[self.index : self.index + emoji_len] == emoji_bytes:
+                    token = Token(token_kind, token_text, self.current_line, self.current_column)
+                    current_line_tokens.append(token)
+                    self.index += emoji_len
+                    self.current_column += emoji_len
+                    matched_emoji = True
+                    break
+
+            if matched_emoji:
+                continue
+
+            # Braces: { (123) and } (125)
+            if byte in (123, 125):
+                token = Token("brace", chr(byte), self.current_line, self.current_column)
+                current_line_tokens.append(token)
+                self.index += 1
+                self.current_column += 1
+                continue
+
+            # Arithmetic operators: + (43), - (45), * (42)
+            if byte in (43, 45, 42):
+                token = Token("operator", chr(byte), self.current_line, self.current_column)
+                current_line_tokens.append(token)
+                self.index += 1
+                self.current_column += 1
+                continue
+
+            # Comparison operator == (61)
+            if byte == 61:  # '='
+                token_col = self.current_column
+                self.index += 1
+                self.current_column += 1
+                next_byte = self.peek_byte()
+                if next_byte == 61:
+                    token = Token("operator", "==", self.current_line, token_col)
+                    current_line_tokens.append(token)
+                    self.index += 1
+                    self.current_column += 1
+                    continue
+                else:
+                    self.error(self.current_line, token_col, "expected '=='")
+
+            # Logical NOT (!) or NEQ (!=)
+            if byte == 33:  # '!'
+                token_col = self.current_column
+                self.index += 1
+                self.current_column += 1
+                next_byte = self.peek_byte()
+                if next_byte == 61:  # '=' -> '!='
+                    token = Token("operator", "!=", self.current_line, token_col)
+                    current_line_tokens.append(token)
+                    self.index += 1
+                    self.current_column += 1
+                    continue
+                else:
+                    token = Token("operator", "!", self.current_line, token_col)
+                    current_line_tokens.append(token)
+                    continue
+
+            # Identifiers and keywords: must start with [a-zA-Z_]
+            if (65 <= byte <= 90) or (97 <= byte <= 122) or (byte == 95):
+                start_index = self.index
+                start_column = self.current_column
+                while self.index < self.length:
+                    current = self.data[self.index]
+                    if (
+                        (65 <= current <= 90)
+                        or (97 <= current <= 122)
+                        or (48 <= current <= 57)
+                        or (current == 95)
+                    ):
+                        self.index += 1
+                        self.current_column += 1
+                    else:
+                        break
+
+                word = self.data[start_index : self.index].decode("ascii")
+                token_kind = KEYWORDS.get(word, "identifier")
+                token = Token(token_kind, word, self.current_line, start_column)
+                current_line_tokens.append(token)
+                continue
+
+            # Numbers: must start with digit [0-9]
+            if 48 <= byte <= 57:
+                start_index = self.index
+                start_column = self.current_column
+                while self.index < self.length and 48 <= self.data[self.index] <= 57:
+                    self.index += 1
+                    self.current_column += 1
+
+                # Check if a letter immediately follows a number (e.g., 5a)
+                if self.index < self.length:
+                    following_byte = self.data[self.index]
+                    if (65 <= following_byte <= 90) or (97 <= following_byte <= 122) or (following_byte == 95):
+                        self.error(self.current_line, self.current_column, "letter in number")
+
+                constant_str = self.data[start_index : self.index].decode("ascii")
+
+                # Check 64-bit integer overflow
+                if int(constant_str) > MAX_64BIT_INT:
+                    self.error(
+                        self.current_line,
+                        start_column,
+                        f"integer overflow: value {constant_str} exceeds 64-bit integer limit",
+                    )
+
+                token = Token("constant", constant_str, self.current_line, start_column)
+                current_line_tokens.append(token)
+                continue
+
+            # Any invalid character / byte
+            try:
+                char_repr = chr(byte)
+            except Exception:
+                char_repr = f"\\x{byte:02x}"
+            self.error(self.current_line, self.current_column, f"bad byte '{char_repr}'")
+
+        if current_line_tokens:
+            lines.append(current_line_tokens)
+
+        return lines
+
+
+def lex(source_bytes: bytes) -> List[List[Token]]:
+    """Convenience function returning token lines from raw bytes."""
+    return Lexer(source_bytes).tokenize()

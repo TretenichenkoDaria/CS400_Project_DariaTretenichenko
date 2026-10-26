@@ -1,50 +1,150 @@
-my language is inspired by a game i have played recently and operates in a harsh, post-apocalyptic steppe setting where data must survive to compile
+# Survival Language Compiler — Stage 1
 
-types:
-* `🩸` - equivalent to `i32`
-* `🫀` - equivalent to `i64`
-* `💊` - equivalent to `bool` (values: `alive` / `dead`)
+A domain-specific programming language set in a harsh, post-apocalyptic steppe where data and state must survive to compile.
 
-vars & assignment:
-* `infect` - declares a mutable variable (mut)
-* `immune` - declares a constant (immutable) variable
-* `💉` - assignment operator
-* `⏳` - statement terminator (instead of a semicolon)
+---
 
-example:
+## 1. Language Overview & Syntax
 
-```bash
-immune 🩸 damage 💉 50 ⏳
-infect 🫀 health 💉 100 ⏳
-health 💉 health - damage ⏳
+### 1.1 Types
+The language supports three primary data types:
+* `🩸` — Signed 32-bit integer (`i32`), valid range: `[-2147483648, 2147483647]`.
+* `🫀` — Signed 64-bit integer (`i64`), valid range: `[-9223372036854775808, 9223372036854775807]`.
+* `💊` — Boolean type (`bool`), taking literals `alive` (true) or `dead` (false).
+
+**Type Overflow Checks:** Integer constants are strictly checked during compilation. Any constant exceeding 64-bit integer limits produces a compilation error. Furthermore, constants initializing `🩸` (`i32`) variables are checked to ensure they do not exceed the 32-bit integer bounds.
+
+---
+
+### 1.2 Variables & Assignment
+* `infect` — Declares a mutable variable.
+* `immune` — Declares an immutable constant.
+* `💉` — Assignment / binding operator.
+* `⏳` — Statement terminator (line delimiter).
+
+**Example:**
+```
+infect 🩸 hp 💉 100 ⏳
+immune 🩸 damage 💉 25 ⏳
+hp 💉 hp - damage ⏳
 ```
 
-control clow (if/else):
-branching is handled using `survive` (if) and `perish` (else)
+---
 
-example:
+### 1.3 Arithmetic Operations
+The language supports binary arithmetic operators with standard mathematical precedence:
+* `+` — Addition (left-associative)
+* `-` — Subtraction (left-associative)
+* `*` — Multiplication (binds tighter than `+` and `-`)
 
-```bash
+**Example:**
+```
+immune 🫀 total 💉 2 * 3 + 4 ⏳
+```
+Evaluates as `(2 * 3) + 4`.
+
+---
+
+### 1.4 Comparisons & Boolean Logic
+* `==` — Equality comparison
+* `!=` — Inequality comparison
+* `!` — Unary logical negation (NOT)
+* `alive` — Boolean literal representing true
+* `dead` — Boolean literal representing false
+
+**Examples:**
+```
+immune 💊 is_safe 💉 5 == 5 ⏳
+immune 💊 is_danger 💉 5 != 10 ⏳
+immune 💊 inverted 💉 !alive ⏳
+```
+
+---
+
+### 1.5 Control Flow (`survive` / `perish`)
+Branching is implemented using `survive` (if) and `perish` (else):
+```
 survive alive {
-infect 🩸 a 💉 1 ⏳
+    infect 🩸 supply 💉 1 ⏳
 } perish {
-infect 🩸 a 💉 2 ⏳
+    infect 🩸 supply 💉 2 ⏳
 }
 ```
+* Braced blocks `{ ... }` may be nested.
+* An else-block (`perish { ... }`) is optional.
+* Blocks cannot be empty and statements inside blocks must adhere to line termination rules.
 
-from our practice compiler i reused:
-* core state-machine lexer logic (adapted to support UTF-8 bytes)
-* recursive-descent parser mechanism (`peek`, `eat`, `exp`)
-* basic ast node hierarchy (`programnode`, `binopnode`, etc.)
+---
 
+### 1.6 Exit Statement
+Every valid program must conclude with a mandatory `exit` statement:
+```
+exit <expr> ⏳
+```
+Any code appearing after `exit` is rejected at compile time as unreachable code.
 
-how to run a program:
+---
 
+### 1.7 Lexical Structure & Token Delimiters
+* Identifiers follow `[a-zA-Z_][a-zA-Z0-9_]*`.
+* Emojis (`🩸`, `🫀`, `💊`, `💉`, `⏳`) are dedicated multi-byte UTF-8 tokens.
+* Emojis are tokenized independently without requiring surrounding spaces (e.g., `x💉5⏳` cleanly tokenizes as `x`, `💉`, `5`, `⏳`).
+* Line discipline: each statement resides on its own line ending with `⏳`.
+
+---
+
+## 2. Compiler Architecture & AST Hierarchy
+
+The compiler is organized into a modular object-oriented architecture:
+
+```
+cs400-compiler/
+├── tokens.py        # Token class and TokenKind enumerations
+├── ast_nodes.py     # Object-oriented AST node hierarchy
+├── lexer.py         # UTF-8 byte-aware lexer with overflow checks
+├── parser.py        # Recursive-descent parser
+├── compiler.py      # Main CLI compiler driver
+├── run_tests.py     # Automated test suite runner with .expected comparison
+├── test_maker.py    # Backwards-compatible test runner wrapper
+├── grammar.ebnf     # Formal ISO EBNF grammar specification
+├── ai_usage.txt     # AI transparency and modification log
+└── tests/
+    ├── ok/          # 15 valid test cases (.txt and .expected)
+    └── err/         # 15 invalid error test cases (.txt and .expected)
+```
+
+### AST Base-Class Hierarchy
+All AST nodes inherit from the common abstract base class `ASTNode`:
+
+```
+                 ASTNode
+                /       \
+        Statement       Expression
+        /   |   \           |    \
+       /    |    \      BinaryOp  UnaryOp
+  Declaration  Assignment         /      \
+      |            |         Variable   Literal
+  IfStatement   ExitNode               /       \
+                               ConstantNode   BooleanNode
+```
+
+---
+
+## 3. How to Run
+
+### 3.1 Compiling a Program and Printing the AST
+To parse a source file and print its Abstract Syntax Tree:
 ```bash
-python3 compiler_.py --ast <input_file.txt>
+python3 compiler.py --ast <input_file.txt>
+```
 
+**Example:**
+```bash
+python3 compiler.py --ast tests/ok/cmp_eq.txt
+```
 
-➜  CS400_Project_DariaTretenichenko python3 compiler.py --ast tests/ok/cmp_eq.txt
+**Output:**
+```
 program
   decl b 💊 const
     binop ==
@@ -52,165 +152,54 @@ program
       const 5
   exit
     const 1
-
 ```
 
-how to run all tests:
+---
 
+### 3.2 Running the Test Suite
+To run all 30 tests (15 valid tests and 15 error tests) with automatic comparison against their `.expected` outputs:
 ```bash
 python3 run_tests.py
-
 ```
 
-expected result:
+*(Alternatively, `python3 test_maker.py` also runs the suite).*
 
-```bash
-➜  CS400_Project_DariaTretenichenko python3 test_maker.py                        
-passed: assign_var.txt
-program
-  decl a 🩸 mut
-    const 10
-  assign a
-    const 20
-  exit
-    var a
-passed: cmp_eq.txt
-program
-  decl b 💊 const
-    binop ==
-      const 5
-      const 5
-  exit
-    const 1
-passed: cmp_neq.txt
-program
-  decl b 💊 const
-    binop !=
-      const 5
-      const 10
-  exit
-    const 1
-passed: decl_bool_alive.txt
-program
-  decl z 💊 const
-    bool alive
-  exit
-    const 1
-passed: decl_imm_i32.txt
-program
-  decl x 🩸 const
-    const 5
-  exit
-    var x
-passed: decl_inf_i64.txt
-program
-  decl y 🫀 mut
-    const 100
-  exit
-    var y
-passed: exit_complex.txt
-program
-  decl a 🩸 const
-    const 1
-  exit
-    binop +
-      var a
-      const 5
-passed: math_add.txt
-program
-  decl a 🩸 const
-    binop +
-      const 5
-      const 5
-  exit
-    var a
-passed: math_complex.txt
-program
-  decl a 🫀 const
-    binop +
-      binop *
-        const 2
-        const 3
-      const 4
-  exit
-    var a
-passed: math_sub.txt
-program
-  decl a 🩸 const
-    binop -
-      const 10
-      const 5
-  exit
-    var a
-passed: multiple_stmts.txt
-program
-  decl a 🩸 mut
-    const 1
-  assign a
-    const 2
-  decl b 🩸 const
-    const 3
-  exit
-    var a
-passed: not_op.txt
-program
-  decl b 💊 const
-    not
-      bool alive
-  exit
-    const 0
-passed: survive_nested.txt
-program
-  if
-    bool alive
-    block
-      if
-        bool dead
-        block
-          decl a 🩸 mut
-            const 1
-  exit
-    const 0
-passed: survive_only.txt
-program
-  if
-    bool alive
-    block
-      decl a 🩸 mut
-        const 1
-  exit
-    const 0
-failed ok test: survive_perish.txt
-error: compilation error: line 3:3: expected '{' after perish
-passed: err_bad_assign.txt
-caught error: compilation error: line 1:3: expected '=='
-passed: err_bad_byte.txt
-caught error: compilation error: line 1:22: bad byte '@'
-passed: err_bad_eq.txt
-caught error: compilation error: line 1:22: expected '=='
-passed: err_bad_type.txt
-caught error: compilation error: line 1:8: expected type
-passed: err_double_decl.txt
-caught error: compilation error: line 1:13: expected name
-passed: err_else_without_if.txt
-caught error: compilation error: line 1:1: 'perish' without a 'survive'
-passed: err_exit_in_block.txt
-caught error: compilation error: line 2:1: bad statement
-passed: err_if_empty.txt
-caught error: compilation error: line 1:15: empty block
-passed: err_if_no_brace.txt
-caught error: compilation error: line 1:10: expected '{'
-passed: err_junk_end.txt
-caught error: compilation error: line 2:1: unreachable code
-passed: err_letter_in_num.txt
-caught error: compilation error: line 1:21: letter in number
-passed: err_missing_semi.txt
-caught error: compilation error: line 1:21: expected ⏳
-passed: err_no_exit.txt
-caught error: compilation error: line 1:22: no exit
-passed: err_no_init.txt
-caught error: compilation error: line 1:15: expected '💉'
-passed: err_unclosed_block.txt
-caught error: compilation error: line 3:1: bad statement
-1 tests failed
+**Expected Test Output:**
+```
+Running positive tests (tests/ok)...
+[PASS] assign_var.txt
+[PASS] cmp_eq.txt
+[PASS] cmp_neq.txt
+[PASS] decl_bool_alive.txt
+[PASS] decl_imm_i32.txt
+[PASS] decl_inf_i64.txt
+[PASS] exit_complex.txt
+[PASS] math_add.txt
+[PASS] math_complex.txt
+[PASS] math_sub.txt
+[PASS] multiple_stmts.txt
+[PASS] not_op.txt
+[PASS] survive_nested.txt
+[PASS] survive_only.txt
+[PASS] survive_perish.txt
+
+Running negative tests (tests/err)...
+[PASS] err_bad_assign.txt
+[PASS] err_bad_byte.txt
+[PASS] err_bad_eq.txt
+[PASS] err_bad_type.txt
+[PASS] err_double_decl.txt
+[PASS] err_else_without_if.txt
+[PASS] err_exit_in_block.txt
+[PASS] err_if_empty.txt
+[PASS] err_if_no_brace.txt
+[PASS] err_junk_end.txt
+[PASS] err_letter_in_num.txt
+[PASS] err_missing_semi.txt
+[PASS] err_no_exit.txt
+[PASS] err_no_init.txt
+[PASS] err_unclosed_block.txt
+
+Test Summary: 30/30 passed.
+All tests passed successfully!
 ```

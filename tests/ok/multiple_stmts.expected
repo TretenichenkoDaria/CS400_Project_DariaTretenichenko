@@ -1,0 +1,9 @@
+program
+  decl a 🩸 mut
+    const 1
+  assign a
+    const 2
+  decl b 🩸 const
+    const 3
+  exit
+    var a
