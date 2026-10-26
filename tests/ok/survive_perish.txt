@@ -1,0 +1,6 @@
+survive alive {
+infect 🩸 a 💉 1 ⏳
+} perish {
+infect 🩸 a 💉 2 ⏳
+}
+exit 0 ⏳
