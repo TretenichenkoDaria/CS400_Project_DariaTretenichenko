@@ -1,0 +1,10 @@
+shelter Point {
+  infect 🩸 x ⏳
+  infect 🩸 y ⏳
+  ritual d2 ( ) -> 🩸 {
+    yield x * x + y * y ⏳
+  }
+}
+infect Point p 💉 Point { read(), read() } ⏳
+print p.d2() ⏳
+exit 0 ⏳

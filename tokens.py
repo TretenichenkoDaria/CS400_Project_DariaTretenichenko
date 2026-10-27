@@ -1,7 +1,4 @@
-"""Token definitions for the survival language compiler."""
-
 from enum import Enum
-from typing import NamedTuple
 
 
 class TokenKind(Enum):
@@ -13,6 +10,14 @@ class TokenKind(Enum):
     DEAD = "dead"
     SURVIVE = "survive"
     PERISH = "perish"
+    RITUAL = "ritual"
+    FN = "fn"
+    SHELTER = "shelter"
+    STRUCT = "struct"
+    YIELD = "yield"
+    RETURN = "return"
+    READ = "read"
+    PRINT = "print"
 
     # Type keywords
     TYPE_I32 = "🩸"
@@ -24,6 +29,11 @@ class TokenKind(Enum):
     TERMINATOR = "⏳"
     LBRACE = "{"
     RBRACE = "}"
+    LPAREN = "("
+    RPAREN = ")"
+    COMMA = ","
+    DOT = "."
+    ARROW = "->"
     EQ = "=="
     NEQ = "!="
     PLUS = "+"
@@ -35,11 +45,10 @@ class TokenKind(Enum):
     IDENTIFIER = "identifier"
     CONSTANT = "constant"
     BOOLEAN = "boolean"
+    STRING = "string"
 
 
 class Token:
-    """Represents a lexical token with kind, text, line, and column position."""
-
     def __init__(self, kind: str, text: str, line: int, column: int):
         self.kind = kind
         self.text = text

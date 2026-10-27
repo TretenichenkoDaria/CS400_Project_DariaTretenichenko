@@ -1,34 +1,25 @@
-"""Abstract Syntax Tree (AST) node hierarchy for the survival language compiler."""
-
 from __future__ import annotations
 from typing import List, Optional
 
 
 class ASTNode:
-    """Base class for all Abstract Syntax Tree nodes."""
-
     def __init__(self, line: int = 0, column: int = 0):
         self.line = line
         self.column = column
 
     def dump(self, indent: str = "") -> None:
-        """Dump formatted AST tree to standard output."""
         raise NotImplementedError(f"{self.__class__.__name__} must implement dump()")
 
 
 class Statement(ASTNode):
-    """Base class for statement AST nodes."""
     pass
 
 
 class Expression(ASTNode):
-    """Base class for expression AST nodes."""
     pass
 
 
 class ProgramNode(ASTNode):
-    """Root program node containing statements followed by a mandatory exit statement."""
-
     def __init__(self, statements: List[Statement], exit_node: ExitNode, line: int = 1, column: int = 1):
         super().__init__(line, column)
         self.statements = statements
@@ -42,8 +33,6 @@ class ProgramNode(ASTNode):
 
 
 class DeclarationNode(Statement):
-    """Variable declaration node (infect/immune type name 💉 expr ⏳)."""
-
     def __init__(
         self,
         line: int,
@@ -66,8 +55,6 @@ class DeclarationNode(Statement):
 
 
 class AssignmentNode(Statement):
-    """Variable reassignment node (name 💉 expr ⏳)."""
-
     def __init__(self, line: int, column: int, name: str, value: Expression):
         super().__init__(line, column)
         self.name = name
@@ -78,9 +65,19 @@ class AssignmentNode(Statement):
         self.value.dump(indent + "  ")
 
 
-class BlockNode(ASTNode):
-    """Block of statements enclosed in braces { ... }."""
+class ChainAssignNode(Statement):
+    def __init__(self, line: int, column: int, target: Expression, value: Expression):
+        super().__init__(line, column)
+        self.target = target
+        self.value = value
 
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}chain_assign")
+        self.target.dump(indent + "  ")
+        self.value.dump(indent + "  ")
+
+
+class BlockNode(ASTNode):
     def __init__(self, line: int, column: int, statements: List[Statement]):
         super().__init__(line, column)
         self.statements = statements
@@ -92,8 +89,6 @@ class BlockNode(ASTNode):
 
 
 class IfNode(Statement):
-    """Conditional statement node (survive expr { ... } [ perish { ... } ])."""
-
     def __init__(
         self,
         line: int,
@@ -116,8 +111,6 @@ class IfNode(Statement):
 
 
 class ExitNode(Statement):
-    """Program exit node (exit expr ⏳)."""
-
     def __init__(self, line: int, column: int, value: Expression):
         super().__init__(line, column)
         self.value = value
@@ -127,9 +120,96 @@ class ExitNode(Statement):
         self.value.dump(indent + "  ")
 
 
-class BinaryOpNode(Expression):
-    """Binary operation expression node (left op right)."""
+class ReturnNode(Statement):
+    def __init__(self, line: int, column: int, value: Expression):
+        super().__init__(line, column)
+        self.value = value
 
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}return")
+        self.value.dump(indent + "  ")
+
+
+class PrintNode(Statement):
+    def __init__(self, line: int, column: int, expr: Expression):
+        super().__init__(line, column)
+        self.expr = expr
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}print")
+        self.expr.dump(indent + "  ")
+
+
+class ParamNode(ASTNode):
+    def __init__(self, line: int, column: int, is_mutable: bool, type_name: str, name: str):
+        super().__init__(line, column)
+        self.is_mutable = is_mutable
+        self.type_name = type_name
+        self.name = name
+
+    def dump(self, indent: str = "") -> None:
+        mut_str = "mut" if self.is_mutable else "const"
+        print(f"{indent}param {self.name} {self.type_name} {mut_str}")
+
+
+class FunctionNode(Statement):
+    def __init__(
+        self,
+        line: int,
+        column: int,
+        name: str,
+        params: List[ParamNode],
+        return_type: str,
+        body: BlockNode,
+    ):
+        super().__init__(line, column)
+        self.name = name
+        self.params = params
+        self.return_type = return_type
+        self.body = body
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}fn {self.name} -> {self.return_type}")
+        for param in self.params:
+            param.dump(indent + "  ")
+        self.body.dump(indent + "  ")
+
+
+class FieldDeclNode(ASTNode):
+    def __init__(self, line: int, column: int, is_mutable: bool, type_name: str, name: str):
+        super().__init__(line, column)
+        self.is_mutable = is_mutable
+        self.type_name = type_name
+        self.name = name
+
+    def dump(self, indent: str = "") -> None:
+        mut_str = "mut" if self.is_mutable else "const"
+        print(f"{indent}field {self.name} {self.type_name} {mut_str}")
+
+
+class StructNode(Statement):
+    def __init__(
+        self,
+        line: int,
+        column: int,
+        name: str,
+        fields: List[FieldDeclNode],
+        methods: List[FunctionNode],
+    ):
+        super().__init__(line, column)
+        self.name = name
+        self.fields = fields
+        self.methods = methods
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}struct {self.name}")
+        for field in self.fields:
+            field.dump(indent + "  ")
+        for method in self.methods:
+            method.dump(indent + "  ")
+
+
+class BinaryOpNode(Expression):
     def __init__(self, line: int, column: int, operator: str, left: Expression, right: Expression):
         super().__init__(line, column)
         self.operator = operator
@@ -143,8 +223,6 @@ class BinaryOpNode(Expression):
 
 
 class UnaryOpNode(Expression):
-    """Unary operation expression node (op operand)."""
-
     def __init__(self, line: int, column: int, operator: str, operand: Expression):
         super().__init__(line, column)
         self.operator = operator
@@ -159,8 +237,6 @@ class UnaryOpNode(Expression):
 
 
 class VariableNode(Expression):
-    """Variable reference expression node."""
-
     def __init__(self, line: int, column: int, name: str):
         super().__init__(line, column)
         self.name = name
@@ -170,8 +246,6 @@ class VariableNode(Expression):
 
 
 class ConstantNode(Expression):
-    """Integer constant literal expression node."""
-
     def __init__(self, line: int, column: int, value: str):
         super().__init__(line, column)
         self.value = value
@@ -181,11 +255,82 @@ class ConstantNode(Expression):
 
 
 class BooleanNode(Expression):
-    """Boolean literal expression node (alive / dead)."""
-
     def __init__(self, line: int, column: int, value: str):
         super().__init__(line, column)
         self.value = value
 
     def dump(self, indent: str = "") -> None:
         print(f"{indent}bool {self.value}")
+
+
+class StringLiteralNode(Expression):
+    def __init__(self, line: int, column: int, value: str):
+        super().__init__(line, column)
+        self.value = value
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}str \"{self.value}\"")
+
+
+class CallNode(Expression):
+    def __init__(self, line: int, column: int, callee: str, args: List[Expression]):
+        super().__init__(line, column)
+        self.callee = callee
+        self.args = args
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}call {self.callee}")
+        for arg in self.args:
+            arg.dump(indent + "  ")
+
+
+class FieldAccessNode(Expression):
+    def __init__(self, line: int, column: int, target: Expression, field_name: str):
+        super().__init__(line, column)
+        self.target = target
+        self.field_name = field_name
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}field_access {self.field_name}")
+        self.target.dump(indent + "  ")
+
+
+class MemberCallNode(Expression):
+    def __init__(
+        self,
+        line: int,
+        column: int,
+        target: Expression,
+        method_name: str,
+        args: List[Expression],
+    ):
+        super().__init__(line, column)
+        self.target = target
+        self.method_name = method_name
+        self.args = args
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}member_call {self.method_name}")
+        self.target.dump(indent + "  ")
+        for arg in self.args:
+            arg.dump(indent + "  ")
+
+
+class StructInitNode(Expression):
+    def __init__(self, line: int, column: int, struct_name: str, args: List[Expression]):
+        super().__init__(line, column)
+        self.struct_name = struct_name
+        self.args = args
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}struct_init {self.struct_name}")
+        for arg in self.args:
+            arg.dump(indent + "  ")
+
+
+class ReadNode(Expression):
+    def __init__(self, line: int, column: int):
+        super().__init__(line, column)
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}read")

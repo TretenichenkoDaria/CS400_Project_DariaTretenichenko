@@ -1,0 +1,8 @@
+ritual first ( immune 🩸 x ) -> 🩸 {
+  yield second(x) * 2 ⏳
+}
+ritual second ( immune 🩸 y ) -> 🩸 {
+  yield y + 5 ⏳
+}
+print first(10) ⏳
+exit 0 ⏳
