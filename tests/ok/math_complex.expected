@@ -1,0 +1,9 @@
+program
+  decl a 🫀 const
+    binop +
+      binop *
+        const 2
+        const 3
+      const 4
+  exit
+    var a

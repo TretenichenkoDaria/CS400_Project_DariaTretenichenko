@@ -1,0 +1,5 @@
+program
+  decl z 💊 const
+    bool alive
+  exit
+    const 1

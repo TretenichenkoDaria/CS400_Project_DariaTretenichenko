@@ -1,216 +1,158 @@
-my language is inspired by a game i have played recently and operates in a harsh, post-apocalyptic steppe setting where data must survive to compile
+# Survival Language Compiler — Stage 2
 
-types:
-* `🩸` - equivalent to `i32`
-* `🫀` - equivalent to `i64`
-* `💊` - equivalent to `bool` (values: `alive` / `dead`)
+A domain-specific programming language set in a harsh, post-apocalyptic steppe where data and state must survive to compile. Stage 2 adds functions, structures with fields and member functions, input/output built-ins (`read`, `print`), and full LLVM IR code generation via `llvmlite.ir`.
 
-vars & assignment:
-* `infect` - declares a mutable variable (mut)
-* `immune` - declares a constant (immutable) variable
-* `💉` - assignment operator
-* `⏳` - statement terminator (instead of a semicolon)
+---
 
-example:
+## 1. Language Overview & Syntax
 
+### 1.1 Types
+* `🩸` — Signed 32-bit integer (`i32`), valid range: `[-2147483648, 2147483647]`.
+* `🫀` — Signed 64-bit integer (`i64`), valid range: `[-9223372036854775808, 9223372036854775807]`.
+* `💊` — Boolean type (`bool`), taking literals `alive` (true) or `dead` (false).
+* Named Structure Types (`identifier`) — Defined via `shelter` / `struct`.
+
+### 1.2 Variables & Assignment
+* `infect` — Declares a mutable variable.
+* `immune` — Declares an immutable constant.
+* `💉` — Assignment / binding operator.
+* `⏳` — Statement terminator.
+
+### 1.3 Arithmetic & Logic
+* Binary arithmetic: `+`, `-`, `*` (standard precedence).
+* Comparisons: `==`, `!=`.
+* Unary: `!`.
+* Literals: integers, booleans (`alive` / `dead`), and string literals (`"..."`).
+
+### 1.4 Control Flow
+* `survive <condition> { ... } perish { ... }`
+
+### 1.5 Exit Statement
+* `exit <expr> ⏳` — Concludes the program with an exit code.
+
+---
+
+## 2. Stage 2 Features & Semantic Rules
+
+### Rule 1: Function Argument Types and Count
+* **Rule:** A function call must provide exactly the number of arguments declared in the function parameter list, and each argument expression must evaluate to the declared parameter type.
+* **Syntax:**
+  ```
+  ritual add ( immune 🩸 a , immune 🩸 b ) -> 🩸 {
+    yield a + b ⏳
+  }
+  ```
+* **Follows rule:** `tests/ok/fn_call.txt`
+* **Breaks rule (count):** `tests/err/err_too_many_args.txt`, `tests/err/err_too_few_args.txt`
+* **Breaks rule (type):** `tests/err/err_arg_wrong_type.txt`
+
+### Rule 2: Function Return Type Consistency
+* **Rule:** A function leaves with a value via `yield` / `return`. The evaluated expression type must match the function's declared return type.
+* **Syntax:**
+  ```
+  yield <expr> ⏳
+  ```
+* **Follows rule:** `tests/ok/fn_recursion.txt`
+* **Breaks rule:** `tests/err/err_return_wrong_type.txt`
+
+### Rule 3: Function Visibility and Mutual Recursion
+* **Rule:** A function may call itself (recursion) and may call any function declared below it (forward references). All functions in a module are declared before bodies are emitted.
+* **Follows rule:** `tests/ok/fn_forward_call.txt`
+* **Breaks rule (duplicate):** `tests/err/err_duplicate_function.txt`
+
+### Rule 4: Structure Declaration and Field Existence
+* **Rule:** Accessing a field via dot notation (`obj.field`) requires that `obj` is of a declared structure type and `field` exists within that structure definition. Structure names must be unique in global scope.
+* **Syntax:**
+  ```
+  shelter Point {
+    infect 🩸 x ⏳
+    infect 🩸 y ⏳
+  }
+  infect Point p 💉 Point { 7, 14 } ⏳
+  print p.x ⏳
+  ```
+* **Follows rule:** `tests/ok/struct_basic.txt`
+* **Breaks rule (unknown field):** `tests/err/err_unknown_field.txt`
+* **Breaks rule (duplicate struct):** `tests/err/err_duplicate_struct.txt`
+
+### Rule 5: Assignment Through Mutable Chains
+* **Rule:** Assignment to a field through a chain (`a.b.c 💉 val ⏳`) is permitted only if every link in the chain is declared mutable (`infect`).
+* **Syntax:**
+  ```
+  p.pos.x 💉 42 ⏳
+  ```
+* **Follows rule:** `tests/ok/struct_chain_assign.txt`
+* **Breaks rule:** `tests/err/err_const_chain_assign.txt`
+
+### Rule 6: Name Lookup Inside Member Functions & Method Resolution
+* **Rule:** Inside a member function, a name is looked up among parameters and locals, then the structure fields, then the global symbols. Calling an undefined method on a structure is rejected.
+* **Syntax:**
+  ```
+  shelter Box {
+    infect 🩸 w ⏳
+    infect 🩸 h ⏳
+    ritual area ( ) -> 🩸 {
+      yield w * h ⏳
+    }
+  }
+  ```
+* **Follows rule:** `tests/ok/struct_method.txt`
+* **Breaks rule:** `tests/err/err_unknown_method.txt`
+
+### Rule 7: Mutating Member Functions on Constant Objects
+* **Rule:** A member function that assigns to any field of its structure may only be invoked on a mutable object (`infect`). Calling it on an immutable object (`immune`) is rejected at compile time.
+* **Syntax:**
+  ```
+  shelter Counter {
+    infect 🩸 val ⏳
+    ritual inc ( ) -> 🩸 {
+      val 💉 val + 1 ⏳
+      yield val ⏳
+    }
+  }
+  ```
+* **Follows rule:** `tests/ok/struct_mut_method.txt`
+* **Breaks rule:** `tests/err/err_mut_method_on_const.txt`
+
+### Rule 8: Built-in Input (`read`)
+* **Rule:** `read()` reads one integer from standard input using `scanf("%d")` and evaluates to type `🩸` (`i32`).
+* **Follows rule:** `tests/ok/point_read.txt` (reads input from `point_read.in`)
+
+### Rule 9: Built-in Output (`print`) and Object Printing
+* **Rule:** `print(expr) ⏳` prints an integer (`%d` for `🩸`, `%lld` for `🫀`), a boolean as `true` or `false`, a string literal as `%s`, or an object by walking its field table in order and printing each field value. Every `print` statement emits a trailing newline `\n`.
+* **Follows rule:** `tests/ok/print_types.txt`
+
+---
+
+## 3. How to Run
+
+### 3.1 Generating LLVM IR
+Compile source code directly into LLVM IR:
 ```bash
-immune 🩸 damage 💉 50 ⏳
-infect 🫀 health 💉 100 ⏳
-health 💉 health - damage ⏳
+python3 compiler.py input.txt output.ll
 ```
 
-control clow (if/else):
-branching is handled using `survive` (if) and `perish` (else)
-
-example:
-
+### 3.2 Compiling with Clang and Running
 ```bash
-survive alive {
-infect 🩸 a 💉 1 ⏳
-} perish {
-infect 🩸 a 💉 2 ⏳
-}
+clang output.ll -o program
+./program
 ```
 
-from our practice compiler i reused:
-* core state-machine lexer logic (adapted to support UTF-8 bytes)
-* recursive-descent parser mechanism (`peek`, `eat`, `exp`)
-* basic ast node hierarchy (`programnode`, `binopnode`, etc.)
-
-
-how to run a program:
-
+### 3.3 Printing the AST
 ```bash
-python3 compiler_.py --ast <input_file.txt>
-
-
-➜  CS400_Project_DariaTretenichenko python3 compiler.py --ast tests/ok/cmp_eq.txt
-program
-  decl b 💊 const
-    binop ==
-      const 5
-      const 5
-  exit
-    const 1
-
+python3 compiler.py --ast input.txt
 ```
 
-how to run all tests:
-
+### 3.4 Running All Tests
+Execute the full test suite (Stage 1 + Stage 2):
 ```bash
 python3 run_tests.py
-
 ```
+*(Alternatively: `python3 test_maker.py`)*
 
-expected result:
+---
 
-```bash
-➜  CS400_Project_DariaTretenichenko python3 test_maker.py                        
-passed: assign_var.txt
-program
-  decl a 🩸 mut
-    const 10
-  assign a
-    const 20
-  exit
-    var a
-passed: cmp_eq.txt
-program
-  decl b 💊 const
-    binop ==
-      const 5
-      const 5
-  exit
-    const 1
-passed: cmp_neq.txt
-program
-  decl b 💊 const
-    binop !=
-      const 5
-      const 10
-  exit
-    const 1
-passed: decl_bool_alive.txt
-program
-  decl z 💊 const
-    bool alive
-  exit
-    const 1
-passed: decl_imm_i32.txt
-program
-  decl x 🩸 const
-    const 5
-  exit
-    var x
-passed: decl_inf_i64.txt
-program
-  decl y 🫀 mut
-    const 100
-  exit
-    var y
-passed: exit_complex.txt
-program
-  decl a 🩸 const
-    const 1
-  exit
-    binop +
-      var a
-      const 5
-passed: math_add.txt
-program
-  decl a 🩸 const
-    binop +
-      const 5
-      const 5
-  exit
-    var a
-passed: math_complex.txt
-program
-  decl a 🫀 const
-    binop +
-      binop *
-        const 2
-        const 3
-      const 4
-  exit
-    var a
-passed: math_sub.txt
-program
-  decl a 🩸 const
-    binop -
-      const 10
-      const 5
-  exit
-    var a
-passed: multiple_stmts.txt
-program
-  decl a 🩸 mut
-    const 1
-  assign a
-    const 2
-  decl b 🩸 const
-    const 3
-  exit
-    var a
-passed: not_op.txt
-program
-  decl b 💊 const
-    not
-      bool alive
-  exit
-    const 0
-passed: survive_nested.txt
-program
-  if
-    bool alive
-    block
-      if
-        bool dead
-        block
-          decl a 🩸 mut
-            const 1
-  exit
-    const 0
-passed: survive_only.txt
-program
-  if
-    bool alive
-    block
-      decl a 🩸 mut
-        const 1
-  exit
-    const 0
-failed ok test: survive_perish.txt
-error: compilation error: line 3:3: expected '{' after perish
-passed: err_bad_assign.txt
-caught error: compilation error: line 1:3: expected '=='
-passed: err_bad_byte.txt
-caught error: compilation error: line 1:22: bad byte '@'
-passed: err_bad_eq.txt
-caught error: compilation error: line 1:22: expected '=='
-passed: err_bad_type.txt
-caught error: compilation error: line 1:8: expected type
-passed: err_double_decl.txt
-caught error: compilation error: line 1:13: expected name
-passed: err_else_without_if.txt
-caught error: compilation error: line 1:1: 'perish' without a 'survive'
-passed: err_exit_in_block.txt
-caught error: compilation error: line 2:1: bad statement
-passed: err_if_empty.txt
-caught error: compilation error: line 1:15: empty block
-passed: err_if_no_brace.txt
-caught error: compilation error: line 1:10: expected '{'
-passed: err_junk_end.txt
-caught error: compilation error: line 2:1: unreachable code
-passed: err_letter_in_num.txt
-caught error: compilation error: line 1:21: letter in number
-passed: err_missing_semi.txt
-caught error: compilation error: line 1:21: expected ⏳
-passed: err_no_exit.txt
-caught error: compilation error: line 1:22: no exit
-passed: err_no_init.txt
-caught error: compilation error: line 1:15: expected '💉'
-passed: err_unclosed_block.txt
-caught error: compilation error: line 3:1: bad statement
-1 tests failed
-```
+## 4. Test Suite Summary
+All 50 tests pass:
+* **25 Positive Tests (`tests/ok`):** 15 Stage 1 AST tests and 10 Stage 2 End-to-End compiled/executed tests.
+* **25 Negative Tests (`tests/err`):** 15 Stage 1 tests and 10 Stage 2 semantic validation tests.

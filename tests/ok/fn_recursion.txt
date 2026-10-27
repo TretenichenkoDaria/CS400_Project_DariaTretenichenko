@@ -1,0 +1,9 @@
+ritual fact ( immune 🩸 n ) -> 🩸 {
+  survive n == 1 {
+    yield 1 ⏳
+  } perish {
+    yield n * fact(n - 1) ⏳
+  }
+}
+print fact(5) ⏳
+exit 0 ⏳

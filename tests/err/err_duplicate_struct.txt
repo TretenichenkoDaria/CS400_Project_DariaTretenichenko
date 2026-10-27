@@ -1,0 +1,7 @@
+shelter Item {
+  infect 🩸 id ⏳
+}
+shelter Item {
+  infect 🩸 val ⏳
+}
+exit 0 ⏳

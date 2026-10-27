@@ -1,14 +1,90 @@
-program = stmt+ exit_stmt ;
-stmt = decl_stmt | assign_stmt | if_stmt ;
-decl_stmt = ("infect" | "immune") type identifier "💉" expr "⏳" ;
-assign_stmt = identifier "💉" expr "⏳" ;
-if_stmt = "survive" expr "{" stmt+ "}" [ "perish" "{" stmt+ "}" ] ;
-exit_stmt = "exit" expr "⏳" ;
-type = "🩸" | "🫀" | "💊" ;
-expr = arith_expr [ ("==" | "!=") arith_expr ] ;
-arith_expr = term { ("+" | "-") term } ;
-term = factor { "*" factor } ;
-factor = ["!"] (identifier | constant | boolean) ;
-boolean = "alive" | "dead" ;
-constant = digit+ ;
-identifier = letter { letter | digit | "_" } ;
+(* ========================================================================= *)
+(* Formal EBNF Grammar for Survival Language                                 *)
+(* Stage 1 & Stage 2: Functions, Structures, Methods, and Built-ins          *)
+(* ========================================================================= *)
+
+(* --- Program Structure & Line Discipline --- *)
+program         = { newline } { statement_line } exit_line { newline } ;
+
+statement_line  = statement newline { newline } ;
+exit_line       = exit_stmt [ newline ] ;
+
+statement       = decl_stmt
+                | assign_stmt
+                | chain_assign_stmt
+                | if_stmt
+                | function_decl
+                | struct_decl
+                | return_stmt
+                | print_stmt ;
+
+(* --- Statements --- *)
+decl_stmt          = mutability_modifier type identifier "💉" expr "⏳" ;
+assign_stmt        = identifier "💉" expr "⏳" ;
+chain_assign_stmt  = chain_target "💉" expr "⏳" ;
+if_stmt            = "survive" expr block [ [ newline ] "perish" block ] ;
+exit_stmt          = "exit" expr "⏳" ;
+return_stmt        = ( "yield" | "return" ) expr "⏳" ;
+print_stmt         = "print" [ "(" ] expr [ ")" ] "⏳" ;
+
+block              = "{" newline { statement_line } "}" ;
+
+(* --- Functions & Structures --- *)
+function_decl      = ( "ritual" | "fn" ) identifier "(" [ param_list ] ")" "->" type block ;
+param_list         = param { "," param } ;
+param              = mutability_modifier type identifier ;
+
+struct_decl        = ( "shelter" | "struct" ) identifier "{" newline { struct_member } "}" ;
+struct_member      = field_decl | function_decl ;
+field_decl         = mutability_modifier type identifier "⏳" newline ;
+
+(* --- Modifiers & Types --- *)
+mutability_modifier = "infect"   (* mutable variable or field *)
+                    | "immune" ; (* immutable constant *)
+
+type               = "🩸"          (* i32: signed 32-bit integer *)
+                   | "🫀"          (* i64: signed 64-bit integer *)
+                   | "💊"          (* bool: truth values (alive / dead) *)
+                   | identifier ;  (* named structure type *)
+
+(* --- Expressions --- *)
+expr               = comparison ;
+comparison         = arith_expr [ ( "==" | "!=" ) arith_expr ] ;
+arith_expr         = term { ( "+" | "-" ) term } ;
+term               = factor { "*" factor } ;
+factor             = [ "!" ] postfix_expr ;
+
+postfix_expr       = primary { member_access | method_call } ;
+member_access      = "." identifier ;
+method_call        = "." identifier "(" [ arg_list ] ")" ;
+
+primary            = identifier [ "(" [ arg_list ] ")" | "{" [ arg_list ] "}" ]
+                   | constant
+                   | boolean
+                   | string_literal
+                   | read_expr ;
+
+read_expr          = "read" "(" ")" ;
+arg_list           = expr { "," expr } ;
+chain_target       = identifier "." identifier { "." identifier } ;
+
+boolean            = "alive"       (* boolean true *)
+                   | "dead" ;      (* boolean false *)
+
+(* --- Lexical Elements, Identifiers, Numbers & Line Structure --- *)
+identifier         = ( letter | "_" ) { letter | digit | "_" } ;
+constant           = digit { digit } ;
+string_literal     = '"' { string_char } '"' ;
+
+letter             = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
+                   | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
+                   | "u" | "v" | "w" | "x" | "y" | "z"
+                   | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
+                   | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
+                   | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+
+digit              = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+string_char        = ? any UTF-8 character except newline or double quote ? ;
+
+newline            = "\n" | "\r\n" ;
+whitespace         = " " | "\t" ;
