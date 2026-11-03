@@ -18,6 +18,14 @@ class TokenKind(Enum):
     RETURN = "return"
     READ = "read"
     PRINT = "print"
+    WHILE = "while"
+    ENDURE = "endure"
+    FOR = "for"
+    SCAVENGE = "scavenge"
+    IN = "in"
+    AMID = "amid"
+    BREAK = "break"
+    FLEE = "flee"
 
     # Type keywords
     TYPE_I32 = "🩸"
@@ -40,6 +48,7 @@ class TokenKind(Enum):
     MINUS = "-"
     STAR = "*"
     NOT = "!"
+    RANGE = ".."
 
     # Literals and identifiers
     IDENTIFIER = "identifier"

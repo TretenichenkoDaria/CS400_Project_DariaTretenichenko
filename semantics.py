@@ -29,6 +29,9 @@ from ast_nodes import (
     MemberCallNode,
     StructInitNode,
     ReadNode,
+    WhileNode,
+    ForNode,
+    BreakNode,
 )
 
 MAX_32BIT_INT = 2147483647
@@ -101,6 +104,7 @@ class SemanticAnalyzer:
         self.scopes: List[Dict[str, Symbol]] = [{}]
         self.current_function: Optional[FunctionInfo] = None
         self.current_struct: Optional[StructInfo] = None
+        self.loop_depth = 0
 
     def error(self, line: int, column: int, message: str) -> None:
         sys.stderr.write(f"compilation error: line {line}:{column}: {message}\n")
@@ -179,6 +183,12 @@ class SemanticAnalyzer:
                     return True
                 if stmt.else_block and self.check_if_mutating(stmt.else_block, s_info):
                     return True
+            elif isinstance(stmt, WhileNode):
+                if self.check_if_mutating(stmt.body, s_info):
+                    return True
+            elif isinstance(stmt, ForNode):
+                if self.check_if_mutating(stmt.body, s_info):
+                    return True
         return False
 
     def analyze_statement(self, stmt: Statement) -> None:
@@ -190,6 +200,12 @@ class SemanticAnalyzer:
             self.analyze_chain_assign(stmt)
         elif isinstance(stmt, IfNode):
             self.analyze_if(stmt)
+        elif isinstance(stmt, WhileNode):
+            self.analyze_while(stmt)
+        elif isinstance(stmt, ForNode):
+            self.analyze_for(stmt)
+        elif isinstance(stmt, BreakNode):
+            self.analyze_break(stmt)
         elif isinstance(stmt, ExitNode):
             self.analyze_exit(stmt)
         elif isinstance(stmt, ReturnNode):
@@ -296,6 +312,36 @@ class SemanticAnalyzer:
             for s in stmt.else_block.statements:
                 self.analyze_statement(s)
             self.exit_scope()
+
+    def analyze_while(self, stmt: WhileNode) -> None:
+        cond_type = self.analyze_expression(stmt.condition)
+        if cond_type != "💊":
+            self.error(stmt.line, stmt.column, f"while condition must be bool (💊), got {cond_type}")
+        self.loop_depth += 1
+        self.analyze_statement(stmt.body)
+        self.loop_depth -= 1
+
+    def analyze_for(self, stmt: ForNode) -> None:
+        start_type = self.analyze_expression(stmt.start)
+        end_type = self.analyze_expression(stmt.end)
+        if start_type not in ("🩸", "🫀"):
+            self.error(stmt.start.line, stmt.start.column, f"for loop range start must be integer, got {start_type}")
+        if end_type not in ("🩸", "🫀"):
+            self.error(stmt.end.line, stmt.end.column, f"for loop range end must be integer, got {end_type}")
+        if start_type != end_type:
+            self.error(stmt.start.line, stmt.start.column, f"for loop range type mismatch: {start_type} vs {end_type}")
+
+        self.enter_scope()
+        self.declare_symbol(Symbol(stmt.var_name, start_type, True, stmt.line, stmt.column))
+        self.loop_depth += 1
+        for s in stmt.body.statements:
+            self.analyze_statement(s)
+        self.loop_depth -= 1
+        self.exit_scope()
+
+    def analyze_break(self, stmt: BreakNode) -> None:
+        if self.loop_depth == 0:
+            self.error(stmt.line, stmt.column, "'break' outside of loop")
 
     def analyze_exit(self, stmt: ExitNode) -> None:
         val_type = self.analyze_expression(stmt.value)

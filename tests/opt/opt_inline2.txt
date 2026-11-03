@@ -1,0 +1,8 @@
+ritual square ( immune 🩸 x ) -> 🩸 {
+  yield x * x ⏳
+}
+infect 🩸 val 💉 7 ⏳
+val 💉 square(val) ⏳
+print val ⏳
+exit 0 ⏳
+

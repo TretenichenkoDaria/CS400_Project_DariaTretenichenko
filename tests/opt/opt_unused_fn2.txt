@@ -1,0 +1,13 @@
+ritual unused_b ( ) -> 🩸 {
+  yield 42 ⏳
+}
+ritual unused_a ( ) -> 🩸 {
+  yield unused_b() ⏳
+}
+ritual kept_fn ( immune 🩸 x ) -> 🩸 {
+  yield x + 1 ⏳
+}
+print kept_fn(5) ⏳
+print kept_fn(10) ⏳
+exit 0 ⏳
+

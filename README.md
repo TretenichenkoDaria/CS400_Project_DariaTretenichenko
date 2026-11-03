@@ -1,6 +1,6 @@
-# Survival Language Compiler — Stage 2
+# Survival Language Compiler — Stage 3
 
-A domain-specific programming language set in a harsh, post-apocalyptic steppe where data and state must survive to compile. Stage 2 adds functions, structures with fields and member functions, input/output built-ins (`read`, `print`), and full LLVM IR code generation via `llvmlite.ir`.
+A domain-specific programming language set in a harsh, post-apocalyptic steppe where data and state must survive to compile. Stage 3 adds custom iteration primitives (`endure` while loops, `scavenge` for-range loops, `flee` break), an AST optimizer with three passes behind `--optimize`, and a full interactive terminal survival simulation compiled to native machine code.
 
 ---
 
@@ -25,134 +25,180 @@ A domain-specific programming language set in a harsh, post-apocalyptic steppe w
 * Literals: integers, booleans (`alive` / `dead`), and string literals (`"..."`).
 
 ### 1.4 Control Flow
-* `survive <condition> { ... } perish { ... }`
+* `survive <condition> { ... } perish { ... }` — Conditional branching.
+* `endure <condition> { ... }` — Condition-controlled loop (`while`).
+* `scavenge <var> amid <start> .. <end> { ... }` — Range-controlled loop (`for`).
+* `flee ⏳` — Immediate termination of the innermost enclosing loop (`break`).
 
 ### 1.5 Exit Statement
 * `exit <expr> ⏳` — Concludes the program with an exit code.
 
 ---
 
-## 2. Stage 2 Features & Semantic Rules
+## 2. Stage 3 Feature: Loops (`endure`, `scavenge`, `flee`)
 
-### Rule 1: Function Argument Types and Count
-* **Rule:** A function call must provide exactly the number of arguments declared in the function parameter list, and each argument expression must evaluate to the declared parameter type.
-* **Syntax:**
-  ```
-  ritual add ( immune 🩸 a , immune 🩸 b ) -> 🩸 {
-    yield a + b ⏳
-  }
-  ```
-* **Follows rule:** `tests/ok/fn_call.txt`
-* **Breaks rule (count):** `tests/err/err_too_many_args.txt`, `tests/err/err_too_few_args.txt`
-* **Breaks rule (type):** `tests/err/err_arg_wrong_type.txt`
+### Rules
+1. `endure <condition> { ... }` evaluates `<condition>` before every iteration. The condition must evaluate to boolean `💊` (`alive` / `dead`); any other type produces a compilation error.
+2. `scavenge <var> amid <start> .. <end> { ... }` evaluates `<start>` and `<end>`, which must both be integers (`🩸` or `🫀`) of the same type. The loop induction variable `<var>` is automatically scoped to the loop body, starting at `<start>` and incrementing by 1 while strictly less than `<end>`.
+3. `flee ⏳` immediately transfers control to the basic block following the innermost active loop. Using `flee ⏳` outside any loop construct produces a compile-time error.
+4. Loops may be nested arbitrarily deep, and loop bodies may declare their own variables which are re-scoped each iteration.
 
-### Rule 2: Function Return Type Consistency
-* **Rule:** A function leaves with a value via `yield` / `return`. The evaluated expression type must match the function's declared return type.
-* **Syntax:**
-  ```
-  yield <expr> ⏳
-  ```
-* **Follows rule:** `tests/ok/fn_recursion.txt`
-* **Breaks rule:** `tests/err/err_return_wrong_type.txt`
+### Example Programs
+```
+infect 🩸 count 💉 0 ⏳
+endure count != 3 {
+  print count ⏳
+  count 💉 count + 1 ⏳
+}
+exit 0 ⏳
+```
 
-### Rule 3: Function Visibility and Mutual Recursion
-* **Rule:** A function may call itself (recursion) and may call any function declared below it (forward references). All functions in a module are declared before bodies are emitted.
-* **Follows rule:** `tests/ok/fn_forward_call.txt`
-* **Breaks rule (duplicate):** `tests/err/err_duplicate_function.txt`
+```
+scavenge i amid 0 .. 4 {
+  print i ⏳
+}
+exit 0 ⏳
+```
 
-### Rule 4: Structure Declaration and Field Existence
-* **Rule:** Accessing a field via dot notation (`obj.field`) requires that `obj` is of a declared structure type and `field` exists within that structure definition. Structure names must be unique in global scope.
-* **Syntax:**
-  ```
-  shelter Point {
-    infect 🩸 x ⏳
-    infect 🩸 y ⏳
-  }
-  infect Point p 💉 Point { 7, 14 } ⏳
-  print p.x ⏳
-  ```
-* **Follows rule:** `tests/ok/struct_basic.txt`
-* **Breaks rule (unknown field):** `tests/err/err_unknown_field.txt`
-* **Breaks rule (duplicate struct):** `tests/err/err_duplicate_struct.txt`
-
-### Rule 5: Assignment Through Mutable Chains
-* **Rule:** Assignment to a field through a chain (`a.b.c 💉 val ⏳`) is permitted only if every link in the chain is declared mutable (`infect`).
-* **Syntax:**
-  ```
-  p.pos.x 💉 42 ⏳
-  ```
-* **Follows rule:** `tests/ok/struct_chain_assign.txt`
-* **Breaks rule:** `tests/err/err_const_chain_assign.txt`
-
-### Rule 6: Name Lookup Inside Member Functions & Method Resolution
-* **Rule:** Inside a member function, a name is looked up among parameters and locals, then the structure fields, then the global symbols. Calling an undefined method on a structure is rejected.
-* **Syntax:**
-  ```
-  shelter Box {
-    infect 🩸 w ⏳
-    infect 🩸 h ⏳
-    ritual area ( ) -> 🩸 {
-      yield w * h ⏳
-    }
-  }
-  ```
-* **Follows rule:** `tests/ok/struct_method.txt`
-* **Breaks rule:** `tests/err/err_unknown_method.txt`
-
-### Rule 7: Mutating Member Functions on Constant Objects
-* **Rule:** A member function that assigns to any field of its structure may only be invoked on a mutable object (`infect`). Calling it on an immutable object (`immune`) is rejected at compile time.
-* **Syntax:**
-  ```
-  shelter Counter {
-    infect 🩸 val ⏳
-    ritual inc ( ) -> 🩸 {
-      val 💉 val + 1 ⏳
-      yield val ⏳
-    }
-  }
-  ```
-* **Follows rule:** `tests/ok/struct_mut_method.txt`
-* **Breaks rule:** `tests/err/err_mut_method_on_const.txt`
-
-### Rule 8: Built-in Input (`read`)
-* **Rule:** `read()` reads one integer from standard input using `scanf("%d")` and evaluates to type `🩸` (`i32`).
-* **Follows rule:** `tests/ok/point_read.txt` (reads input from `point_read.in`)
-
-### Rule 9: Built-in Output (`print`) and Object Printing
-* **Rule:** `print(expr) ⏳` prints an integer (`%d` for `🩸`, `%lld` for `🫀`), a boolean as `true` or `false`, a string literal as `%s`, or an object by walking its field table in order and printing each field value. Every `print` statement emits a trailing newline `\n`.
-* **Follows rule:** `tests/ok/print_types.txt`
+### LLVM IR Excerpt (Loop Lowering)
+```llvm
+loop_cond:
+  %".4" = load i32, i32* %"count"
+  %".5" = icmp ne i32 %".4", 3
+  br i1 %".5", label %"loop_body", label %"loop_merge"
+loop_body:
+  %".7" = load i32, i32* %"count"
+  %".8" = getelementptr [4 x i8], [4 x i8]* @"fmt_i32", i32 0, i32 0
+  %".9" = call i32 (i8*, ...) @"printf"(i8* %".8", i32 %".7")
+  %".10" = load i32, i32* %"count"
+  %".11" = add i32 %".10", 1
+  store i32 %".11", i32* %"count"
+  br label %"loop_cond"
+loop_merge:
+  ret i32 0
+```
+* **Explanation:**
+  * In `loop_cond`, the loop guard evaluates the condition and conditionally branches to either the loop body or loop exit (`loop_merge`).
+  * In `loop_body`, the body statements execute, here printing the current count and incrementing the stored variable.
+  * The unconditional branch `br label %"loop_cond"` forms the back edge, transferring control back to the condition header for the next iteration.
 
 ---
 
-## 3. How to Run
+## 3. Stage 3 Task 2: The Optimizer (`--optimize`)
 
-### 3.1 Generating LLVM IR
-Compile source code directly into LLVM IR:
+The optimizer runs three AST-level transformations on the checked tree before code generation:
+1. **Unused variables:** Scans declarations and assignments; any variable never read across the entire program (taking lexical scopes and shadowing into account) is eliminated along with its assignments. Initializers or expressions containing function calls or `read()` are never dropped.
+2. **Unused functions:** Removes any top-level function that is never called directly or indirectly from live code. Removing an unused function body may uncover additional uncalled functions, which are eliminated in subsequent iterations until a fixpoint is reached.
+3. **Inlining:** Functions called exactly once across the program that are non-recursive, have a single exit point (`yield` / `return` at the end of their body), and contain no early exits are replaced directly at their call site. Each formal parameter becomes a local declaration bound to the evaluated argument, body statements are inserted before the call site with unique alpha-renamed variables to avoid collisions with the caller, and the return expression substitutes the call node. Recursive functions, functions called more than once, and functions containing `exit` statements inside branches are left intact.
+
+### Before and After Inlining Excerpt (LLVM IR)
+
+**Before Inlining (calls `f_square` via `call` instruction):**
+```llvm
+define i32 @"f_square"(i32 %".1")
+{
+entry:
+  %"x" = alloca i32
+  store i32 %".1", i32* %"x"
+  %".4" = load i32, i32* %"x"
+  %".5" = load i32, i32* %"x"
+  %".6" = mul i32 %".4", %".5"
+  ret i32 %".6"
+}
+
+define i32 @"main"()
+{
+entry:
+  %"val" = alloca i32
+  store i32 7, i32* %"val"
+  %".3" = load i32, i32* %"val"
+  %".4" = call i32 @"f_square"(i32 %".3")
+  store i32 %".4", i32* %"val"
+  ...
+```
+
+**After Inlining (`f_square` eliminated, body substituted in `main`):**
+```llvm
+define i32 @"main"()
+{
+entry:
+  %"val" = alloca i32
+  store i32 7, i32* %"val"
+  %"inline_square_3_x" = alloca i32
+  %".3" = load i32, i32* %"val"
+  store i32 %".3", i32* %"inline_square_3_x"
+  %".5" = load i32, i32* %"inline_square_3_x"
+  %".6" = load i32, i32* %"inline_square_3_x"
+  %".7" = mul i32 %".5", %".6"
+  store i32 %".7", i32* %"val"
+  ...
+```
+
+---
+
+## 4. Stage 3 Task 3: Interactive Program (`programs/survival_game.txt`)
+
+`programs/survival_game.txt` is an interactive post-apocalyptic steppe survival simulation.
+* **What it does:** The user guides a survivor across days on the steppe, balancing health, food, and day count.
+* **Language features used:** Uses structure `Survivor` with two mutating member functions (`rest`, `forage`), helper function `calculate_score`, console input/output (`read`, `print`), and custom loops (`endure`, `scavenge`, and `flee`).
+* **Where the feature is used:** An outer `endure` loop drives the interactive day-by-day turns; inside action 2, a `scavenge` for-range loop simulates searching across multiple areas; action 3 uses `flee` to break out and escape to camp.
+
+### Compilation to Native Binary with `llc` and `clang`
+```bash
+python3 compiler.py programs/survival_game.txt programs/survival_game.ll
+llc -filetype=obj programs/survival_game.ll -o programs/survival_game.o
+clang programs/survival_game.o -o programs/survival_game
+./programs/survival_game
+```
+
+### Running Recorded Sessions
+* **Session 1 (Rest and Flee):**
+  ```bash
+  ./programs/survival_game < programs/survival_game.in
+  ```
+* **Session 2 (Forage search and Flee):**
+  ```bash
+  ./programs/survival_game < programs/survival_game_2.in
+  ```
+
+---
+
+## 5. How to Run
+
+### 5.1 Generating LLVM IR
 ```bash
 python3 compiler.py input.txt output.ll
 ```
+With the optimizer enabled:
+```bash
+python3 compiler.py --optimize input.txt output.ll
+```
 
-### 3.2 Compiling with Clang and Running
+### 5.2 Compiling with Clang and Running
 ```bash
 clang output.ll -o program
 ./program
 ```
 
-### 3.3 Printing the AST
+### 5.3 Printing the AST
 ```bash
 python3 compiler.py --ast input.txt
 ```
+To print the AST after optimization:
+```bash
+python3 compiler.py --optimize --ast input.txt
+```
 
-### 3.4 Running All Tests
-Execute the full test suite (Stage 1 + Stage 2):
+### 5.4 Running All Tests
 ```bash
 python3 run_tests.py
 ```
-*(Alternatively: `python3 test_maker.py`)*
 
 ---
 
-## 4. Test Suite Summary
-All 50 tests pass:
-* **25 Positive Tests (`tests/ok`):** 15 Stage 1 AST tests and 10 Stage 2 End-to-End compiled/executed tests.
-* **25 Negative Tests (`tests/err`):** 15 Stage 1 tests and 10 Stage 2 semantic validation tests.
+## 6. Test Suite Summary
+All 64 test scenarios pass:
+* **28 Positive Unit Tests (`tests/ok`):** 15 AST tests and 13 End-to-End tests (including `loop_while`, `loop_for`, `loop_nested`).
+* **28 Negative Tests (`tests/err`):** 28 semantic and syntax validation tests (including `err_loop_cond_type`, `err_loop_for_range`, `err_break_outside_loop`).
+* **6 Optimizer Tests (`tests/opt`):** 2 unused variable tests, 2 unused function tests, 2 inlining tests, verifying AST after `--optimize --ast` and output consistency.
+* **2 Interactive Program Sessions (`programs/`):** Session 1 and Session 2 automated with stdin and stdout matching.

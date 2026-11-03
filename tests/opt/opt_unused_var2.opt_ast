@@ -1,0 +1,13 @@
+program
+  decl x 🩸 mut
+    const 1
+  if
+    bool alive
+    block
+      decl x 🩸 mut
+        const 2
+      print
+        var x
+  exit
+    var x
+

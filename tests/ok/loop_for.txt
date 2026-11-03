@@ -1,0 +1,4 @@
+scavenge i amid 0 .. 4 {
+  print i ⏳
+}
+exit 0 ⏳

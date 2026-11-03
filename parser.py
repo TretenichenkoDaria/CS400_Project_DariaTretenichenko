@@ -30,6 +30,9 @@ from ast_nodes import (
     MemberCallNode,
     StructInitNode,
     ReadNode,
+    WhileNode,
+    ForNode,
+    BreakNode,
 )
 
 MAX_32BIT_INT = 2147483647
@@ -130,6 +133,12 @@ class Parser:
             return self.parse_print()
         elif token.text == "survive":
             return self.parse_if()
+        elif token.text in ("while", "endure"):
+            return self.parse_while()
+        elif token.text in ("for", "scavenge"):
+            return self.parse_for()
+        elif token.text in ("break", "flee"):
+            return self.parse_break()
         elif token.text == "perish":
             self.error(token.line, token.column, "'perish' without a 'survive'")
         elif token.kind == "identifier":
@@ -388,6 +397,63 @@ class Parser:
 
         return IfNode(survive_token.line, survive_token.column, condition, then_block, else_block)
 
+    def parse_while(self) -> WhileNode:
+        w_tok = self.eat()
+        assert w_tok is not None
+        condition = self.parse_expression()
+        open_brace = self.peek()
+        if not open_brace or open_brace.text != "{":
+            line = open_brace.line if open_brace else self.last_line
+            column = open_brace.column if open_brace else self.last_column + 1
+            self.error(line, column, "expected '{'")
+        body = self.parse_block()
+        return WhileNode(w_tok.line, w_tok.column, condition, body)
+
+    def parse_for(self) -> ForNode:
+        f_tok = self.eat()
+        assert f_tok is not None
+        has_paren = False
+        if self.peek() and self.peek().text == "(":
+            self.eat()
+            has_paren = True
+
+        var_tok = self.expect("identifier", "loop variable name")
+        in_tok = self.peek()
+        if not in_tok or in_tok.text not in ("in", "amid"):
+            line = in_tok.line if in_tok else self.last_line
+            col = in_tok.column if in_tok else self.last_column + 1
+            self.error(line, col, "expected 'amid'")
+        self.eat()
+
+        start = self.parse_expression()
+        range_op = self.peek()
+        if not range_op or range_op.text != "..":
+            line = range_op.line if range_op else self.last_line
+            col = range_op.column if range_op else self.last_column + 1
+            self.error(line, col, "expected '..'")
+        self.eat()
+
+        end = self.parse_expression()
+        if has_paren:
+            self.expect("paren", ")")
+
+        open_brace = self.peek()
+        if not open_brace or open_brace.text != "{":
+            line = open_brace.line if open_brace else self.last_line
+            column = open_brace.column if open_brace else self.last_column + 1
+            self.error(line, column, "expected '{'")
+        body = self.parse_block()
+        return ForNode(f_tok.line, f_tok.column, var_tok.text, start, end, body)
+
+    def parse_break(self) -> BreakNode:
+        b_tok = self.eat()
+        assert b_tok is not None
+        terminator_op = self.expect("operator", "⏳")
+        if terminator_op.text != "⏳":
+            self.error(terminator_op.line, terminator_op.column, "expected '⏳'")
+        self.check_end_of_line()
+        return BreakNode(b_tok.line, b_tok.column)
+
     def parse_block(self) -> BlockNode:
         left_brace = self.eat()
         assert left_brace is not None
@@ -534,7 +600,7 @@ class Parser:
                 self.expect("paren", ")")
                 return CallNode(ident.line, ident.column, ident.text, args)
             # Check if struct instantiation: Name { arg1, arg2 }
-            if self.peek() and self.peek().text == "{":
+            if ident.text in self.declared_structs and self.peek() and self.peek().text == "{":
                 self.eat()
                 args = []
                 if self.peek() and self.peek().text != "}":

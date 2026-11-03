@@ -1,0 +1,10 @@
+ritual dead_fn ( ) -> 🩸 {
+  yield 999 ⏳
+}
+ritual alive_fn ( immune 🩸 n ) -> 🩸 {
+  yield n * 2 ⏳
+}
+print alive_fn(10) ⏳
+print alive_fn(20) ⏳
+exit 0 ⏳
+

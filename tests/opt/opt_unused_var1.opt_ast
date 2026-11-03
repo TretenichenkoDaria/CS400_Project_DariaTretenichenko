@@ -1,0 +1,8 @@
+program
+  decl a 🩸 mut
+    const 10
+  print
+    var a
+  exit
+    const 0
+

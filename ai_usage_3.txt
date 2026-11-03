@@ -1,0 +1,22 @@
+https://share.gemini.google/0U4J5Y84BOoW
+
+tool used: gemini
+
+prompts summary:
+
+* how to generate llvm ir for while and for loops using llvmlite
+* simple ebnf grammar rules for while and for loops
+* how to handle variable declarations in a loop body ast visitor without breaking scope
+* how to traverse ast to remove unused variables and unused functions recursively
+* algorithm for function inlining, handling variable collisions, and safely skipping recursive functions or early exits
+* idea for an interactive cli program using structs, member functions, read, print, and a while loop
+* terminal commands to compile llvm ir to native binary using llc and clang
+
+what was taken as it was:
+ebnf grammar rules, terminal commands for llc and clang, the algorithm logic for scope stacking, and the robot cli program concept.
+
+what was changed and why:
+adapted the provided python ast visitor, transformer, and llvmlite code to match the specific node class names and symbol table implementation of my own compiler structure.
+
+what i understood:
+i learned how conditional branches and back edges form loops in llvm ir basic blocks. i also understood that inlining requires creating deep copies of the function body and renaming variables to avoid scope collisions, and that unused function removal must be iterative because dropping one body might leave another function uncalled.

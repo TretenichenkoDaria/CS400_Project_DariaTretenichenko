@@ -140,6 +140,49 @@ class PrintNode(Statement):
         self.expr.dump(indent + "  ")
 
 
+class WhileNode(Statement):
+    def __init__(self, line: int, column: int, condition: Expression, body: BlockNode):
+        super().__init__(line, column)
+        self.condition = condition
+        self.body = body
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}while")
+        self.condition.dump(indent + "  ")
+        self.body.dump(indent + "  ")
+
+
+class ForNode(Statement):
+    def __init__(
+        self,
+        line: int,
+        column: int,
+        var_name: str,
+        start: Expression,
+        end: Expression,
+        body: BlockNode,
+    ):
+        super().__init__(line, column)
+        self.var_name = var_name
+        self.start = start
+        self.end = end
+        self.body = body
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}for {self.var_name}")
+        self.start.dump(indent + "  ")
+        self.end.dump(indent + "  ")
+        self.body.dump(indent + "  ")
+
+
+class BreakNode(Statement):
+    def __init__(self, line: int, column: int):
+        super().__init__(line, column)
+
+    def dump(self, indent: str = "") -> None:
+        print(f"{indent}break")
+
+
 class ParamNode(ASTNode):
     def __init__(self, line: int, column: int, is_mutable: bool, type_name: str, name: str):
         super().__init__(line, column)

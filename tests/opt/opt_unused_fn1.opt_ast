@@ -1,0 +1,17 @@
+program
+  fn alive_fn -> 🩸
+    param n 🩸 const
+    block
+      return
+        binop *
+          var n
+          const 2
+  print
+    call alive_fn
+      const 10
+  print
+    call alive_fn
+      const 20
+  exit
+    const 0
+

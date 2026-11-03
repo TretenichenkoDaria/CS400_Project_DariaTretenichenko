@@ -20,6 +20,14 @@ KEYWORDS = {
     "return": "keyword",
     "read": "keyword",
     "print": "keyword",
+    "while": "keyword",
+    "endure": "keyword",
+    "for": "keyword",
+    "scavenge": "keyword",
+    "amid": "keyword",
+    "in": "keyword",
+    "flee": "keyword",
+    "break": "keyword",
 }
 
 EMOJI_TOKENS = {
@@ -105,12 +113,20 @@ class Lexer:
                 self.current_column += 1
                 continue
 
-            if byte == 46:  # '.'
-                token = Token("dot", ".", self.current_line, self.current_column)
-                current_line_tokens.append(token)
+            if byte == 46:
+                token_col = self.current_column
                 self.index += 1
                 self.current_column += 1
-                continue
+                if self.peek_byte() == 46:
+                    self.index += 1
+                    self.current_column += 1
+                    token = Token("operator", "..", self.current_line, token_col)
+                    current_line_tokens.append(token)
+                    continue
+                else:
+                    token = Token("dot", ".", self.current_line, token_col)
+                    current_line_tokens.append(token)
+                    continue
 
             # String literal: "..."
             if byte == 34:  # '"'

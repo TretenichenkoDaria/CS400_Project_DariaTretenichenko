@@ -30,6 +30,9 @@ from ast_nodes import (
     MemberCallNode,
     StructInitNode,
     ReadNode,
+    WhileNode,
+    ForNode,
+    BreakNode,
 )
 from semantics import SemanticAnalyzer, StructInfo, FunctionInfo
 
@@ -58,6 +61,7 @@ class CodeGenerator:
         self.current_struct: Optional[StructInfo] = None
         self.current_this_ptr: Optional[ir.Value] = None
         self.str_constants_count = 0
+        self.loop_exits: List[ir.Block] = []
 
         self.setup_runtime()
 
@@ -287,6 +291,75 @@ class CodeGenerator:
 
             self.builder.position_at_end(merge_bb)
 
+        elif isinstance(stmt, WhileNode):
+            func = self.builder.function
+            cond_bb = func.append_basic_block("loop_cond")
+            body_bb = func.append_basic_block("loop_body")
+            merge_bb = func.append_basic_block("loop_merge")
+
+            self.builder.branch(cond_bb)
+
+            self.builder.position_at_end(cond_bb)
+            cond_val = self.generate_expression(stmt.condition)
+            self.builder.cbranch(cond_val, body_bb, merge_bb)
+
+            self.builder.position_at_end(body_bb)
+            self.loop_exits.append(merge_bb)
+            self.enter_scope()
+            for s in stmt.body.statements:
+                self.generate_statement(s)
+            self.exit_scope()
+            self.loop_exits.pop()
+            if not self.builder.block.is_terminated:
+                self.builder.branch(cond_bb)
+
+            self.builder.position_at_end(merge_bb)
+
+        elif isinstance(stmt, ForNode):
+            func = self.builder.function
+            start_val = self.generate_expression(stmt.start)
+            end_val = self.generate_expression(stmt.end)
+            llvm_type = start_val.type
+
+            var_ptr = self.builder.alloca(llvm_type, name=stmt.var_name)
+            self.builder.store(start_val, var_ptr)
+
+            cond_bb = func.append_basic_block("for_cond")
+            body_bb = func.append_basic_block("for_body")
+            inc_bb = func.append_basic_block("for_inc")
+            merge_bb = func.append_basic_block("for_merge")
+
+            self.builder.branch(cond_bb)
+
+            self.builder.position_at_end(cond_bb)
+            cur_val = self.builder.load(var_ptr)
+            cmp_val = self.builder.icmp_signed("<", cur_val, end_val)
+            self.builder.cbranch(cmp_val, body_bb, merge_bb)
+
+            self.builder.position_at_end(body_bb)
+            self.loop_exits.append(merge_bb)
+            self.enter_scope()
+            var_type_name = "🩸" if llvm_type == self.i32 else "🫀"
+            self.declare_variable(stmt.var_name, var_ptr, var_type_name)
+            for s in stmt.body.statements:
+                self.generate_statement(s)
+            self.exit_scope()
+            self.loop_exits.pop()
+            if not self.builder.block.is_terminated:
+                self.builder.branch(inc_bb)
+
+            self.builder.position_at_end(inc_bb)
+            cur_val2 = self.builder.load(var_ptr)
+            next_val = self.builder.add(cur_val2, ir.Constant(llvm_type, 1))
+            self.builder.store(next_val, var_ptr)
+            self.builder.branch(cond_bb)
+
+            self.builder.position_at_end(merge_bb)
+
+        elif isinstance(stmt, BreakNode):
+            target_bb = self.loop_exits[-1]
+            self.builder.branch(target_bb)
+
         elif isinstance(stmt, ExitNode):
             val = self.generate_expression(stmt.value)
             if val.type == self.i64:
@@ -301,7 +374,7 @@ class CodeGenerator:
             self.generate_print(stmt.expr)
 
     def generate_print(self, expr: Expression) -> None:
-        expr_type = self.semantics.analyze_expression(expr)
+        expr_type = self.get_expr_type(expr)
 
         if expr_type == "🩸":
             val = self.generate_expression(expr)
@@ -349,6 +422,48 @@ class CodeGenerator:
                     false_ptr = self.get_str_ptr(self.str_false)
                     str_ptr = self.builder.select(f_val, true_ptr, false_ptr)
                     self.builder.call(self.printf, [str_ptr])
+
+    def get_expr_type(self, expr: Expression) -> str:
+        if isinstance(expr, ConstantNode):
+            val = int(expr.value)
+            return "🩸" if val <= MAX_32BIT_INT else "🫀"
+        if isinstance(expr, BooleanNode):
+            return "💊"
+        if isinstance(expr, StringLiteralNode):
+            return "string"
+        if isinstance(expr, ReadNode):
+            return "🩸"
+        if isinstance(expr, VariableNode):
+            res = self.lookup_variable(expr.name)
+            if res is not None:
+                return res[1]
+            if self.current_struct and expr.name in self.current_struct.fields:
+                return self.current_struct.fields[expr.name].type_name
+        if isinstance(expr, UnaryOpNode):
+            if expr.operator == "!":
+                return "💊"
+        if isinstance(expr, BinaryOpNode):
+            if expr.operator in ("==", "!="):
+                return "💊"
+            return self.get_expr_type(expr.left)
+        if isinstance(expr, CallNode):
+            if expr.callee in self.semantics.functions:
+                return self.semantics.functions[expr.callee].return_type
+        if isinstance(expr, StructInitNode):
+            return expr.struct_name
+        if isinstance(expr, FieldAccessNode):
+            base_type = self.get_expr_type(expr.target)
+            if base_type in self.semantics.structs:
+                s_info = self.semantics.structs[base_type]
+                if expr.field_name in s_info.fields:
+                    return s_info.fields[expr.field_name].type_name
+        if isinstance(expr, MemberCallNode):
+            base_type = self.get_expr_type(expr.target)
+            if base_type in self.semantics.structs:
+                s_info = self.semantics.structs[base_type]
+                if expr.method_name in s_info.methods:
+                    return s_info.methods[expr.method_name].return_type
+        return "unknown"
 
     def get_lvalue_ptr(self, expr: Expression) -> ir.Value:
         if isinstance(expr, VariableNode):
