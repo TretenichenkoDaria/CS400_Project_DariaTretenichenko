@@ -1,0 +1,11 @@
+shelter Counter {
+  infect 🩸 val ⏳
+  ritual inc ( immune 🩸 step ) -> 🩸 {
+    val 💉 val + step ⏳
+    yield val ⏳
+  }
+}
+infect Counter c 💉 Counter { 10 } ⏳
+print c.inc(5) ⏳
+print c.val ⏳
+exit 0 ⏳

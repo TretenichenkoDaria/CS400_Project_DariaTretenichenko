@@ -1,0 +1,7 @@
+ritual foo ( ) -> 🩸 {
+  yield 1 ⏳
+}
+ritual foo ( ) -> 🩸 {
+  yield 2 ⏳
+}
+exit 0 ⏳

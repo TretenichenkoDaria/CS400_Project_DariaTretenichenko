@@ -1,0 +1,5 @@
+program
+  decl x 🩸 const
+    const 5
+  exit
+    var x

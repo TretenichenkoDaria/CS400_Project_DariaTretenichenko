@@ -1,0 +1,82 @@
+shelter Survivor {
+  infect 🩸 health ⏳
+  infect 🩸 food ⏳
+  infect 🩸 days ⏳
+
+  ritual rest ( ) -> 🩸 {
+    health 💉 health + 10 ⏳
+    food 💉 food - 5 ⏳
+    days 💉 days + 1 ⏳
+    yield health ⏳
+  }
+
+  ritual forage ( immune 🩸 amount ) -> 🩸 {
+    food 💉 food + amount ⏳
+    health 💉 health - 5 ⏳
+    days 💉 days + 1 ⏳
+    yield food ⏳
+  }
+}
+
+ritual calculate_score ( immune 🩸 d , immune 🩸 f , immune 🩸 h ) -> 🩸 {
+  yield d * 10 + f * 2 + h ⏳
+}
+
+infect Survivor s 💉 Survivor { 50, 20, 0 } ⏳
+
+print "=== Steppe Survival ===" ⏳
+print "Survive as long as you can." ⏳
+
+infect 🩸 playing 💉 1 ⏳
+
+endure playing == 1 {
+  print "--- Current Status ---" ⏳
+  print s.health ⏳
+  print s.food ⏳
+  print s.days ⏳
+
+  survive s.health != 0 {
+    survive s.food != 0 {
+      print "Action (1: Rest, 2: Forage, 3: Flee to Camp):" ⏳
+      infect 🩸 action 💉 read() ⏳
+
+      survive action == 1 {
+        infect 🩸 h 💉 s.rest() ⏳
+        print "Rested. Health:" ⏳
+        print h ⏳
+      } perish {
+        survive action == 2 {
+          print "Search areas (how many rounds?):" ⏳
+          infect 🩸 rounds 💉 read() ⏳
+          infect 🩸 found 💉 0 ⏳
+          scavenge step amid 0 .. rounds {
+            found 💉 found + 3 ⏳
+          }
+          infect 🩸 f 💉 s.forage(found) ⏳
+          print "Foraged. Food:" ⏳
+          print f ⏳
+        } perish {
+          survive action == 3 {
+            print "You fled to safety!" ⏳
+            flee ⏳
+          } perish {
+            print "Unknown action." ⏳
+          }
+        }
+      }
+    } perish {
+      print "Starvation! No food left." ⏳
+      playing 💉 0 ⏳
+    }
+  } perish {
+    print "Exhaustion! No health left." ⏳
+    playing 💉 0 ⏳
+  }
+}
+
+infect 🩸 final_score 💉 calculate_score(s.days, s.food, s.health) ⏳
+print "=== Final Score ===" ⏳
+print final_score ⏳
+
+exit 0 ⏳
+

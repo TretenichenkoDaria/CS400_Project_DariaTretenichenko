@@ -1,0 +1,11 @@
+program
+  if
+    bool alive
+    block
+      if
+        bool dead
+        block
+          decl a 🩸 mut
+            const 1
+  exit
+    const 0

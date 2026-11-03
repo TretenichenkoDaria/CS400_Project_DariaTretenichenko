@@ -1,0 +1,4 @@
+endure 42 {
+  print 1 ⏳
+}
+exit 0 ⏳

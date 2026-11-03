@@ -1,0 +1,10 @@
+shelter Box {
+  infect 🩸 w ⏳
+  infect 🩸 h ⏳
+  ritual area ( ) -> 🩸 {
+    yield w * h ⏳
+  }
+}
+infect Box b 💉 Box { 6, 9 } ⏳
+print b.area() ⏳
+exit 0 ⏳

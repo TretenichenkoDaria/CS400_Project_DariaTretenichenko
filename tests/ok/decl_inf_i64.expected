@@ -1,0 +1,5 @@
+program
+  decl y 🫀 mut
+    const 100
+  exit
+    var y

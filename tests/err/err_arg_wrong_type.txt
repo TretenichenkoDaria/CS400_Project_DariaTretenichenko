@@ -1,0 +1,5 @@
+ritual foo ( immune 🩸 a ) -> 🩸 {
+  yield a ⏳
+}
+immune 🩸 res 💉 foo(alive) ⏳
+exit 0 ⏳

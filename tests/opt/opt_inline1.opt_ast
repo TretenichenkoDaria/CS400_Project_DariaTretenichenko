@@ -1,0 +1,18 @@
+program
+  decl inline_compute_3_a 🩸 const
+    const 3
+  decl inline_compute_3_b 🩸 const
+    const 4
+  decl inline_compute_3_temp 🩸 mut
+    binop +
+      var inline_compute_3_a
+      var inline_compute_3_b
+  decl result 🩸 mut
+    binop *
+      var inline_compute_3_temp
+      const 2
+  print
+    var result
+  exit
+    const 0
+

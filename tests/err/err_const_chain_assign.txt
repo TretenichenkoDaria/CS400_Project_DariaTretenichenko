@@ -1,0 +1,9 @@
+shelter Vec {
+  infect 🩸 x ⏳
+}
+shelter Node {
+  immune Vec pos ⏳
+}
+infect Node n 💉 Node { Vec { 1 } } ⏳
+n.pos.x 💉 10 ⏳
+exit 0 ⏳

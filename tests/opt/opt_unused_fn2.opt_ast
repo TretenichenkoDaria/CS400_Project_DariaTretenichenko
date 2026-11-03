@@ -1,0 +1,17 @@
+program
+  fn kept_fn -> 🩸
+    param x 🩸 const
+    block
+      return
+        binop +
+          var x
+          const 1
+  print
+    call kept_fn
+      const 5
+  print
+    call kept_fn
+      const 10
+  exit
+    const 0
+

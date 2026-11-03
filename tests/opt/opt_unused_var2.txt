@@ -1,0 +1,9 @@
+infect 🩸 unused1 💉 100 ⏳
+infect 🩸 unused2 💉 unused1 + 50 ⏳
+infect 🩸 x 💉 1 ⏳
+survive alive {
+  infect 🩸 x 💉 2 ⏳
+  print x ⏳
+}
+exit x ⏳
+

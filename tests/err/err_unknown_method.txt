@@ -1,0 +1,6 @@
+shelter Point {
+  infect 🩸 x ⏳
+}
+infect Point p 💉 Point { 1 } ⏳
+print p.compute() ⏳
+exit 0 ⏳

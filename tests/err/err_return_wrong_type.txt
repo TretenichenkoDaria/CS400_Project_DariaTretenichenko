@@ -1,0 +1,4 @@
+ritual foo ( immune 🩸 a ) -> 🩸 {
+  yield alive ⏳
+}
+exit 0 ⏳

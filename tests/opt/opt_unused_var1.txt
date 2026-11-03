@@ -1,0 +1,6 @@
+infect 🩸 a 💉 10 ⏳
+infect 🩸 b 💉 20 ⏳
+b 💉 b + 5 ⏳
+print a ⏳
+exit 0 ⏳
+

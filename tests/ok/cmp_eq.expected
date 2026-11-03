@@ -1,0 +1,7 @@
+program
+  decl b 💊 const
+    binop ==
+      const 5
+      const 5
+  exit
+    const 1

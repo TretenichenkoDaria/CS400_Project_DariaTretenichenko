@@ -1,0 +1,8 @@
+ritual compute ( immune 🩸 a , immune 🩸 b ) -> 🩸 {
+  infect 🩸 temp 💉 a + b ⏳
+  yield temp * 2 ⏳
+}
+infect 🩸 result 💉 compute(3, 4) ⏳
+print result ⏳
+exit 0 ⏳
+

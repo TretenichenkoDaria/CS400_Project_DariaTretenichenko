@@ -1,0 +1,13 @@
+shelter Vec {
+  infect 🩸 x ⏳
+  infect 🩸 y ⏳
+}
+shelter Particle {
+  infect Vec pos ⏳
+  infect 🩸 mass ⏳
+}
+infect Particle p 💉 Particle { Vec { 10, 20 }, 5 } ⏳
+print p.pos.x ⏳
+print p.pos.y ⏳
+print p.mass ⏳
+exit 0 ⏳

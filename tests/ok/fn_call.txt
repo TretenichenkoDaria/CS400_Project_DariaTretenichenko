@@ -1,0 +1,5 @@
+ritual add ( immune 🩸 a , immune 🩸 b ) -> 🩸 {
+  yield a + b ⏳
+}
+print add(10, 20) ⏳
+exit 0 ⏳

@@ -1,0 +1,6 @@
+program
+  decl b 💊 const
+    not
+      bool alive
+  exit
+    const 0

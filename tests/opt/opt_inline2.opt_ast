@@ -1,0 +1,14 @@
+program
+  decl val 🩸 mut
+    const 7
+  decl inline_square_3_x 🩸 const
+    var val
+  assign val
+    binop *
+      var inline_square_3_x
+      var inline_square_3_x
+  print
+    var val
+  exit
+    const 0
+

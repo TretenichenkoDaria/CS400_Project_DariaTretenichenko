@@ -1,0 +1,8 @@
+shelter Point {
+  infect 🩸 x ⏳
+  infect 🩸 y ⏳
+}
+infect Point p 💉 Point { 7, 14 } ⏳
+print p.x ⏳
+print p.y ⏳
+exit 0 ⏳

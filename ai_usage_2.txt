@@ -1,0 +1,17 @@
+https://share.gemini.google/5szj83NMgwrA
+
+Tools used: Gemini
+
+Prompts sent:
+- how to create a named struct and use alloca/gep in llvmlite.
+- declaring printf/scanf and global format strings in llvmlite.
+- passing struct pointers to member functions.
+- ebnf rules for chained field/method access without left recursion.
+- tracking mutability for chained assignments in semantic analysis.
+- python subprocess script for end-to-end testing with .ll, .in, and .expected files.
+
+What was taken and changed:
+The EBNF rule for chained access and the subprocess testing script were taken mostly as they were. The llvmlite generation snippets for structs, global strings, and member functions, as well as the semantic analysis logic, were adapted and integrated into the existing compiler architecture and symbol table design.
+
+What I understood:
+Creating structures in llvmlite requires defining an identified type and calculating field indices for gep instructions. String literals for functions like printf must be declared as global constants and bitcast to pointers. To prevent left recursion in the parser, repetition loops are used instead of recursive rule references. For semantic analysis, the mutability of an assignment chain is determined by evaluating both the base object's mutability and the specific field's mutability flag from the symbol table.

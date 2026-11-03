@@ -1,0 +1,5 @@
+print 42 ⏳
+print alive ⏳
+print dead ⏳
+print "survive the steppe" ⏳
+exit 0 ⏳

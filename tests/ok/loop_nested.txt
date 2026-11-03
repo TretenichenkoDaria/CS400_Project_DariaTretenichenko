@@ -1,0 +1,11 @@
+scavenge i amid 1 .. 3 {
+  infect 🩸 j 💉 0 ⏳
+  endure j != 2 {
+    print i * 10 + j ⏳
+    survive j == 1 {
+      flee ⏳
+    }
+    j 💉 j + 1 ⏳
+  }
+}
+exit 0 ⏳
